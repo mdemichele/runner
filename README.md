@@ -2,6 +2,10 @@
 
 A minimal iOS running tracker built with SwiftUI.
 
+## App Icon
+
+<img src="Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png" width="120" />
+
 ## Screenshots
 
 <p float="left">
