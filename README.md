@@ -2,6 +2,13 @@
 
 A minimal iOS running tracker built with SwiftUI.
 
+## Screenshots
+
+<p float="left">
+  <img src="screenshots/run.PNG" width="250" />
+  <img src="screenshots/history.PNG" width="250" />
+</p>
+
 ## Features
 
 - **Live run tracking** — tracks duration, distance, and average pace in real time using CoreLocation
