@@ -25,6 +25,16 @@ struct ActiveRunView: View {
             Text("distance")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .padding(.bottom, 32)
+
+            // Pace
+            Text(runManager.formattedPace)
+                .font(.system(size: 40, weight: .light, design: .monospaced))
+                .monospacedDigit()
+
+            Text("min/mile")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Spacer()
 

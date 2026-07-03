@@ -96,6 +96,15 @@ class RunManager: NSObject, ObservableObject {
     var formattedDistance: String {
         String(format: "%.2f mi", distanceMeters / 1609.344)
     }
+
+    var formattedPace: String {
+        let miles = distanceMeters / 1609.344
+        guard miles > 0 else { return "--:--" }
+        let secondsPerMile = elapsed / miles
+        let m = Int(secondsPerMile) / 60
+        let s = Int(secondsPerMile) % 60
+        return String(format: "%d:%02d", m, s)
+    }
 }
 
 // MARK: - CLLocationManagerDelegate
