@@ -11,7 +11,7 @@ class RunManager: NSObject, ObservableObject {
     @Published var elapsed: TimeInterval = 0
     @Published var distanceMeters: Double = 0
     @Published var history: [Run] = []
-    @Published var locationAuthorized: Bool = false
+    @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
     private var timer: Timer?
     private var startDate: Date?
@@ -26,14 +26,20 @@ class RunManager: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 5
+        locationManager.activityType = .fitness
+        locationManager.pausesLocationUpdatesAutomatically = false
         history = store.load()
     }
 
     // MARK: - Run control
 
+    var locationDenied: Bool {
+        authorizationStatus == .denied || authorizationStatus == .restricted
+    }
+
     func start() {
         locationManager.requestWhenInUseAuthorization()
-        locationManager.startUpdatingLocation()
+        startLocationUpdates()
         startDate = Date()
         pausedElapsed = 0
         distanceMeters = 0
@@ -43,22 +49,26 @@ class RunManager: NSObject, ObservableObject {
     }
 
     func pause() {
+        updateElapsed()
         pausedElapsed = elapsed
         timer?.invalidate()
-        locationManager.stopUpdatingLocation()
+        stopLocationUpdates()
         state = .paused
     }
 
     func resume() {
         startDate = Date()
-        locationManager.startUpdatingLocation()
+        // Don't count distance covered while paused
+        lastLocation = nil
+        startLocationUpdates()
         state = .active
         startTimer()
     }
 
     func stop() {
+        if state == .active { updateElapsed() }
         timer?.invalidate()
-        locationManager.stopUpdatingLocation()
+        stopLocationUpdates()
         let run = Run(duration: elapsed, distanceMeters: distanceMeters)
         history.insert(run, at: 0)
         store.save(history)
@@ -78,9 +88,25 @@ class RunManager: NSObject, ObservableObject {
 
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self, let start = self.startDate else { return }
-            self.elapsed = self.pausedElapsed + Date().timeIntervalSince(start)
+            self?.updateElapsed()
         }
+    }
+
+    private func updateElapsed() {
+        guard let start = startDate else { return }
+        elapsed = pausedElapsed + Date().timeIntervalSince(start)
+    }
+
+    // Keep tracking while the screen is locked (requires the "location" background mode)
+    private func startLocationUpdates() {
+        locationManager.allowsBackgroundLocationUpdates = true
+        locationManager.showsBackgroundLocationIndicator = true
+        locationManager.startUpdatingLocation()
+    }
+
+    private func stopLocationUpdates() {
+        locationManager.stopUpdatingLocation()
+        locationManager.allowsBackgroundLocationUpdates = false
     }
 
     var formattedElapsed: String {
@@ -111,12 +137,16 @@ class RunManager: NSObject, ObservableObject {
 
 extension RunManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        let status = manager.authorizationStatus
-        locationAuthorized = (status == .authorizedWhenInUse || status == .authorizedAlways)
+        authorizationStatus = manager.authorizationStatus
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last, state == .active else { return }
+        guard state == .active else { return }
+        // Skip cached and low-accuracy fixes, which otherwise inflate distance
+        guard let location = locations.last(where: {
+            $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy <= 30
+                && abs($0.timestamp.timeIntervalSinceNow) < 10
+        }) else { return }
         if let last = lastLocation {
             let delta = location.distance(from: last)
             if delta > 0 { distanceMeters += delta }

@@ -38,6 +38,11 @@ struct ActiveRunView: View {
 
             Spacer()
 
+            if runManager.locationDenied {
+                locationDeniedNotice
+                    .padding(.bottom, 24)
+            }
+
             // Controls
             controls
                 .padding(.bottom, 48)
@@ -73,6 +78,22 @@ struct ActiveRunView: View {
                 }
             }
         }
+    }
+
+    private var locationDeniedNotice: some View {
+        VStack(spacing: 8) {
+            Text("Location access is off, so distance and pace can't be measured.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .font(.footnote.weight(.semibold))
+        }
+        .padding(.horizontal, 32)
     }
 
     private func label(_ text: String, color: Color) -> some View {
